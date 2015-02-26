@@ -1,0 +1,261 @@
+// @todo: Let the user choose which buttons to show
+// @todo: Add close button
+define(['html2canvas'], function() {
+    Win = function(options) {    
+        
+        /*
+         *
+         * options = {
+         *  id:             int
+         *  title:          string
+         *  icon:           string
+         *  content:        string or jquery obj
+         *  destroyed:      callback
+         *  created:        callback
+         *  saveBtnClicked: callback
+         *  hidden:         callback
+         *  shown:          callback
+         * }
+         *
+         */
+        
+        if ( arguments.length === 0 ) return;
+        
+        this._id            = typeof options.id             !== 'undefined' ? options.id : 0;
+        this._title         = typeof options.title          !== 'undefined' ? options.title : 'Insert Title Here';
+        this._icon          = typeof options.icon           !== 'undefined' ? options.icon : 'icon-exclamation-sign';
+        this._content       = typeof options.content        !== 'undefined' ? options.content : 'Replace this with Content';
+        this.destroyed      = typeof options.destroyed      !== 'undefined' ? options.destroyed : '';
+        this.hidden         = typeof options.hidden         !== 'undefined' ? options.hidden : '';
+        this.shown          = typeof options.shown          !== 'undefined' ? options.shown : '';
+        this.created        = typeof options.created        !== 'undefined' ? options.created : '';
+        this.saveBtnClicked = typeof options.saveBtnClicked !== 'undefined' ? options.saveBtnClicked : '';
+        this._fade          = null;
+        
+        // Set variables
+        this._$win = $('<div />', {
+            id: this._id,
+            'class': 'modal hide fade'
+        });
+        
+        this._$header = $('<div />', {
+            'class': 'modal-header'
+        });
+        
+        this._$body = $('<div />', {
+            'class': 'modal-body'
+        });
+        
+        this._$footer = $('<div />', {
+            'class': 'modal-footer'
+        });
+        
+        this._$hideBtn = $('<button />', {
+            'class': 'close',
+            'aria-hidden': true
+        }).append($('<i />',{'class': 'icon-chevron-down'}));
+        
+        this._$saveBtn = $('<button />', {
+            'class': 'btn btn-primary',
+            text: 'Save and Close'
+        });
+        
+        this._$cancelBtn = $('<button />', {
+            'class': 'btn btn-danger',
+            text: 'Cancel'
+        });
+        
+        this._$title = $('<h3 />', {
+            text: this._title
+        });
+        
+        this._$icon = $('<i />', {
+            'class': this._icon,
+            style: 'float:left;margin:8px 10px 0px 0px;display:block;'
+        });
+        
+        this._create();
+    }
+
+    // This function actually creates the window
+    Win.prototype._create = function() {
+        
+        // Assemble the pieces
+        this._$win
+            .append( this._$header
+                    .append(this._$hideBtn)
+                    .append(this._$icon)
+                    .append(this._$title)                
+            )
+            .append( this._$body
+                    .append(this._content)
+            )
+            .append( this._$footer
+                    .append(this._$cancelBtn)
+                    .append(this._$saveBtn)
+            );
+        
+        // Fade in from top when created
+        this._fade = 'up';
+        this._$win.addClass(this._fade).modal({
+            keyboard: false,
+            backdrop: 'static',
+            show: false
+        });    
+        
+        
+        // Listeners ---------------------------------------------------------------    
+        var _this = this;
+        
+        // Triggers when this is hidden
+        this._$win.on('hidden', function() {
+            _this._$win.removeClass(_this._fade);
+            
+            switch ( _this._fade ) {
+                case 'up':
+                    // Remove the window from the dom
+                    _this._$win.remove();
+                    
+                    // Call destroyed callback
+                    if ( typeof _this.destroyed === 'function' ) {
+                        _this.destroyed();
+                    }
+                    break;
+                    
+                default:
+                    if ( typeof _this.hidden === 'function' ) {
+                        _this.hidden();
+                    }
+                    break;
+            }
+        });
+        
+        // Triggers when this finishes being shown
+        this._$win.on('shown', function() {
+            _this._$win.removeClass(_this._fade);
+            
+            // Prepare the preview and figure out what to do next
+            html2canvas(_this.getContent(), {
+                onrendered: function(canvas) {
+                        _this._preview = $(canvas).width('210px')[0];
+                        
+                        switch ( _this._fade ) {
+                            case 'up':        
+                                // Call created callback
+                                if ( typeof _this.created === 'function' ) _this.created();                
+                                break;
+
+                            default:                
+                                if ( typeof _this.shown === 'function' ) _this.shown();
+                                break;
+                        }
+                    }
+            });                
+        });
+        
+        // Triggers when the save and close button is pressed
+        this._$saveBtn.on('click', function() {
+            //_this.destroy();
+            if ( typeof _this.saveBtnClicked === 'function' ) _this.saveBtnClicked();
+            return false;
+        });
+        
+        // Triggers when the cancel button is pressed
+        this._$cancelBtn.on('click', function() {
+            _this.destroy();
+            return false;
+        });
+        
+        // Triggers when the hide button is pressed
+        this._$hideBtn.on('click', function() {
+            _this.hide();
+            return false;
+        });
+    }
+
+    // Returns the preview canvas
+    Win.prototype.getPreview = function() {
+        return this._preview;
+    }
+
+    // Shows the window once created
+    Win.prototype.showCreated = function() {
+        this._$win.addClass(this._fade).modal('show');
+    }
+
+    // This function destroys the window
+    Win.prototype.destroy = function() {
+        this._fade = 'up';
+        this._$win.addClass(this._fade).modal('hide');    
+    }
+
+    Win.prototype.slideLeftHide = function() {
+        var _this = this;
+        _this._fade = 'left';
+        
+        html2canvas(_this.getContent(), {
+                onrendered: function(canvas) {
+                        _this._preview = $(canvas).width('210px')[0];
+                        
+                        _this._$win.addClass(_this._fade).modal('hide');
+                }
+        });        
+    }
+
+    Win.prototype.slideLeftShow = function() {
+        this._fade = 'left';
+        this._$win.addClass(this._fade).modal('show');
+    }
+
+    Win.prototype.slideRightHide = function() {
+        var _this = this;
+        _this._fade = 'right';
+        
+        html2canvas(_this.getContent(), {
+                onrendered: function(canvas) {
+                        _this._preview = $(canvas).width('210px')[0];
+                        
+                        _this._$win.addClass(_this._fade).modal('hide');
+                }
+        });  
+    }
+
+    Win.prototype.slideRightShow = function() {
+        this._fade = 'right';
+        this._$win.addClass(this._fade).modal('show');    
+    }
+
+    Win.prototype.restore = function() {
+        this._fade = 'down';
+        this._$win.addClass(this._fade).modal('show');    
+    }
+
+    Win.prototype.hide = function() {    
+        var _this = this;
+        _this._fade = 'down';
+        
+        html2canvas(_this.getContent(), {
+                onrendered: function(canvas) {
+                        _this._preview = $(canvas).width('210px')[0];
+                        
+                        _this._$win.addClass(_this._fade).modal('hide');
+                }
+        });  
+    }
+
+    Win.prototype.getID = function() {
+        return this._id;
+    }
+
+    Win.prototype.getTitle = function() {
+        return this._title;
+    }
+
+    Win.prototype.getIcon = function() {
+        return this._icon;
+    }
+
+    Win.prototype.getContent = function() {
+        return this._content;
+    }
+});

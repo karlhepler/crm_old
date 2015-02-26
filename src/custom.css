@@ -1,0 +1,242 @@
+.alertify-log {
+    word-break:break-all;
+}
+.pane {
+    overflow: auto;
+    background: url(furley_bg.png) repeat;
+}
+body {
+	background: url(grey_wash_wall.png) repeat;
+}
+.capitalize {
+    text-transform:capitalize;
+}
+.control-group {
+    margin:0;
+    padding:0;
+}
+
+/* Override the animation */
+.modal.fade {
+    top: 10%;
+}
+.modal.fade.in {
+    top: 10%
+}
+
+/* Make custom fade animations */
+.modal.fade.up {
+    -webkit-transition: opacity .3s linear, top .3s ease-out;
+    -moz-transition: opacity .3s linear, top .3s ease-out;
+    -o-transition: opacity .3s linear, top .3s ease-out;
+    transition: opacity .3s linear, top .3s ease-out;
+    top: -25%;
+}
+.modal.fade.up.in {
+    top: 10%;
+}
+
+.modal.fade.down {
+    -webkit-transition: opacity .3s linear, top .3s ease-in;
+    -moz-transition: opacity .3s linear, top .3s ease-in;
+    -o-transition: opacity .3s linear, top .3s ease-in;
+    transition: opacity .3s linear, top .3s ease-in;
+    top: 125%;
+}
+.modal.fade.down.in {
+    top: 10%;
+}
+
+.modal.fade.left {
+    -webkit-transition: opacity .3s linear, left .3s ease-out;
+    -moz-transition: opacity .3s linear, left .3s ease-out;
+    -o-transition: opacity .3s linear, left .3s ease-out;
+    transition: opacity .3s linear, left .3s ease-out;
+    left: -25%;
+}
+.modal.fade.left.in {
+    left: 50%;
+}
+
+.modal.fade.right {
+    -webkit-transition: opacity .3s linear, left .3s ease-in;
+    -moz-transition: opacity .3s linear, left .3s ease-in;
+    -o-transition: opacity .3s linear, left .3s ease-in;
+    transition: opacity .3s linear, left .3s ease-in;
+    left: 125%;
+}
+.modal.fade.right.in {
+    left: 50%;
+}
+
+.cloneBox {
+    border-left:1px solid lightgrey;
+}
+
+.cloneBox {
+    margin-top:10px;
+    margin-bottom:10px;
+}
+
+.cloneBox input {
+    margin-bottom:0px;
+}
+
+.cloneBox .udfSelect {
+    margin-bottom:0px;
+}
+
+.cloneBox select {
+    margin-bottom:0px;
+}
+
+.modal .label {
+    text-align:center;
+    padding-top:5px;
+    font-size:16px;
+    margin-top:10px;
+}
+
+footer.popover {
+    z-index: 101;
+}
+
+.modal {
+    z-index: 99;
+}
+
+footer {
+    bottom:0;
+    position:fixed;
+    width:100%;
+    z-index: 100;
+}
+
+.modal-backdrop {
+    z-index: 97;
+}
+
+.invisible {
+    visibility: hidden;
+}
+
+.padding-left-16px {
+    padding-left:16px;
+}
+
+.nav-tabs li a {
+    background-color: white;
+}
+
+.label:hover {
+    background-color: #2f96b4;
+}
+
+.accordion-heading {
+    background-color: #2f96b4;
+}
+
+.accordion-heading a {
+    color:white;
+}
+
+.accordion {
+    margin-bottom:0;
+}
+
+.table {
+    margin-bottom:0;
+    table-layout: fixed;
+}
+
+.entity-casino-content {
+    overflow:auto;
+    position:relative;
+    margin: 0;
+    background-color:white;
+}
+
+td {
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+}
+tr td:first-child {
+    width:25%;
+}
+
+/* WIN */
+.win .header .hideBtn {
+    width: 32px;
+    height: 32px;
+}
+
+.win .header {
+    height: 32px;
+}
+
+/* ENTITY LIST */
+.entity-list {
+    background-color: white;
+    margin-bottom: 1px;
+}
+.entity-list .Entity a {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding-right: 20px;
+}
+.entity-list .Entity .pic {
+    margin-right: 10px;
+    width: 32px;
+    height: 32px
+}
+.entity-list .Entity .icon {
+    margin-right: 10px;
+}
+.entity-list .Entity .checkbox-label {
+    margin: 0 10px 0 0;
+    width: 32px;
+    height: 32px;
+    text-align: center;
+    display: inline-block;
+    vertical-align: middle;
+}
+.entity-list .Entity i.icon-chevron-right {
+    position: absolute;
+    right: 10px;
+    margin-top: 8px;
+}
+.entity-list .Entity .pic {
+    width: 32px;
+    height: 32px;
+}
+
+/* ENTITY CARD */
+.entity-card {
+    background-color: white;
+}
+.entity-card .Entity .icon {
+    vertical-align: top;
+    margin-right: 10px;
+    margin-top: 3px;
+}
+.entity-card .Entity .pic {
+    width: 64px;
+    height: 64px;
+    margin-right: 10px;
+}
+.entity-card .Entity .name {
+    font-size: 18px;
+    font-weight: bold;
+    vertical-align: top;
+}
+.entity-card .Entity .checkbox-label {
+    margin: 0;
+    width: 32px;
+    height: 32px;
+    text-align: center;
+    display: block;
+    vertical-align: middle;
+    float: right;
+}

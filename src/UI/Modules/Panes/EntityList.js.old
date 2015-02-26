@@ -1,0 +1,603 @@
+// @todo: I'm going to have to redo this - I need to focus on EVENTS and not actions. Also need to incorporate the indeterminate checkbox value and a history array for the hashes I've been to.
+// @todo: When redoing, make the checkbox area larger and remove the 'isChecked' class and just make the event for a checkbox within an entity class. It will need to be the first on or a specific level down.
+// @todo: Also put checkbox next to Udfs - I would like to easily show just the emails I sent to this person. Etc. All Udfs can have the same look as the entity list this way.
+// @todo: Tags should be selectable as well and used for filtering
+// @todo: When clicking on the bar (not the checkbox) of a udf, a popup needs to come up to the right that proposes options and shows more info. For addresses, it can show google map and street view. For email, it can ask how to email it. etc
+;(function(global,undefined) {
+    
+    EntityList = function() {
+        
+        var $this = this;
+
+        $this._html   =   $('<div />')                        
+                            .addClass('carousel').css('margin-bottom',0)
+                            .addClass('slide')
+                            .carousel({interval: false});
+
+        $this._carousel =   $('<div />').appendTo( $this._html )
+                            .addClass('carousel-inner')
+                            .css('margin-bottom',0);
+
+        $this._list     =   $('<ul />').appendTo( $('<div />').addClass('item').addClass('active').appendTo($this._carousel) )
+                            .css('margin-bottom',1)
+                            .css('background-color','white')
+                            .addClass('nav')
+                            .addClass('nav-tabs')
+                            .addClass('nav-stacked')
+                            .addClass('entity-list');
+                            
+        $this._listMenu =   $('<div />').prependTo( $this._list.parent() )
+                        .addClass('entity-list-menu')
+                        .append(
+                            $('<div />')
+                            .addClass('input-prepend').addClass('input-append')
+                            .append(
+                                $('<div />')
+                                .addClass('btn-group')
+                                .append(
+                                    $('<a />', {href: '#', 'data-toggle': 'dropdown'})
+                                    .addClass('btn').addClass('dropdown-toggle')
+                                    .append(
+                                        $('<i />').addClass('caret').css('margin-left',12)
+                                    )
+                                    .prepend( $('<input type="checkbox" />') )
+                                )
+                                .append(
+                                    $('<ul />').addClass('dropdown-menu')
+                                    .append( $('<li />').append($('<a />', {href: '#', text: 'All'})) )
+                                    .append( $('<li />').append($('<a />', {href: '#', text: 'None'})) )                                    
+                                )
+                            )                                                        
+                            .append(
+                                // @todo: http://jsfiddle.net/hYAEQ/273/
+                                $('<input type="text" />')
+                                .attr('placeholder','Search')
+                            )
+                            .append(
+                                $('<div />')
+                                .addClass('btn-group')
+                                .append(
+                                    $('<button />')
+                                    .addClass('btn').addClass('btn-info')
+                                    .addClass('dropdown-toggle')
+                                    .prepend( $('<i />').addClass('icon-filter').addClass('icon-white') )
+                                    .attr('data-toggle','dropdown')
+                                )
+                                .append(
+                                    $('<ul />')
+                                    .addClass('dropdown-menu')
+                                    .css('float','right')
+                                    .css('left','-313%')
+                                    .append(
+                                        $('<li />')
+                                        .append(
+                                            $('<a />', {href: '#', text: 'Accounts'})
+                                            .prepend(
+                                                $('<i />').addClass('icon-briefcase').css('margin-right',5).css('margin-left',10)
+                                            )
+                                            .prepend( $('<input type="checkbox" />') )
+                                        )
+                                     )
+                                    .append(
+                                        $('<li />')
+                                        .append(
+                                            $('<a />', {href: '#', text: 'Contacts'})
+                                            .prepend(
+                                                $('<i />').addClass('icon-user').css('margin-right',5).css('margin-left',10)
+                                            )
+                                            .prepend( $('<input type="checkbox" />') )
+                                        )
+                                    )
+                                )                                
+                            )
+                        );
+        
+        // Cache first
+        accounts.getEach(function(account) {            
+            $this.add( account );
+        });        
+        contacts.getEach(function(contact) {            
+            $this.add( contact );
+        });
+        
+        // Then ajax
+        accounts.sync(function(account) {
+            // If it's not already in there, add it!
+            if ( $this._list.children('.Account'+account.getID()).length < 1 ) {
+                $this.add(account);
+            }
+        },
+        function() {
+            contacts.sync(function(contact) {
+                // If it's not already in there, add it!
+                if ( $this._list.children('.Contact'+contact.getID()).length < 1 ) {
+                    $this.add(contact);
+                }
+            });
+        });
+        
+        // EVENTS --------------------------------------------------------------
+
+        // When the page loads, show the card according to the hash if there is one
+        if ( location.hash !== '' ) {
+            var hash = location.hash;                
+            var $thisCard = $this._carousel.find('.active');
+            var entity = hash.substr(1,7);
+            var id     = hash.substr(8);
+
+            // Show next card
+            switch ( entity ) {
+                
+                case 'Account':
+                    accounts.get(id, function(account) {
+                        $this.showNewCard(account);
+                    });
+                    break;
+
+                case 'Contact':
+                    contacts.get(id, function(contact) {
+                        $this.showNewCard(contact);
+                    });
+                    break;
+
+                default:
+                    alertify.error('Unkown hash: ' + hash);
+                    break;
+            }
+        }
+
+        // What happens after the carousel slides        
+        $this._html.carousel().on('slid', function(e) {
+            if ( $this._showList === true ) {
+                $this._carousel.find('.item:gt(0)').remove();
+                $this._showList = false;
+            }
+            else if ( $this._prevCard !== null ) {
+                $this._prevCard.remove();                
+            }
+        });
+
+        // What happens when the hash changes, which is going to be caused by clicking on an entity
+        var prevHash = '';
+        $(window).hashchange(function(e) {
+            if ( location.hash !== '' ) {
+                var hash = location.hash;                
+                var $thisCard = $this._carousel.find('.active');
+                console.log('prev',prevHash,'this',hash,'equals',hash === prevHash);
+                if ( hash === prevHash ) {
+                    $this._prevCard = $thisCard;
+                    $this.showPrevCard();
+                }
+                else {
+                    var entity = hash.substr(1,7);
+                    var id     = hash.substr(8);
+
+                    // Show next card
+                    switch ( entity ) {
+                        
+                        case 'Account':
+                            accounts.get(id, function(account) {
+                                $this.showNewCard(account);
+                            });
+                            break;
+
+                        case 'Contact':
+                            contacts.get(id, function(contact) {
+                                $this.showNewCard(contact);
+                            });
+                            break;
+
+                        default:
+                            alertify.error('Unkown hash: ' + hash);
+                            break;
+                    }
+                }
+            }
+            else {
+                $this.showList();
+            }
+        });
+
+        // END EVENTS ------------------------------------------------------------
+    }
+    EntityList.prototype.constructor = EntityList;
+    
+    EntityList.prototype.showNewCard = function(entity) {
+        this._prevCard = null;
+        
+        $('<div />').appendTo(this._carousel)
+        .addClass('item')
+        .append(this._getCardMenu())
+        .append( this._getCard(entity) );
+
+        this._html.carousel('next');
+        
+        // Make sure the list menu is the right size
+        $('.entity-list-menu input:text').each(function(index,elem) {
+            $(elem).width( $('.entity-list-menu').parents('.pane').width() - $(elem).parent().width() + $(elem).width() - 1 );
+        });
+    }
+
+    EntityList.prototype.showList = function() {
+        this._showList = true;
+        this._html.carousel(0);
+        
+        // Make sure the list menu is the right size
+        $('.entity-list-menu input:text').each(function(index,elem) {
+            $(elem).width( $('.entity-list-menu').parents('.pane').width() - $(elem).parent().width() + $(elem).width() - 1 );
+        });
+    }
+
+    EntityList.prototype.showPrevCard = function() {
+        this._html.carousel('prev');
+        
+        // Make sure the list menu is the right size
+        $('.entity-list-menu input:text').each(function(index,elem) {
+            $(elem).width( $('.entity-list-menu').parents('.pane').width() - $(elem).parent().width() + $(elem).width() - 1 );
+        });
+    }
+    
+    EntityList.prototype.add = function(entity) {
+        var $this = this;
+
+        // Define the card
+        var $entity =   $('<li />')
+                        .addClass(entity.getType()+entity.getID())
+                        .append(
+                            $('<a />', {href: '#'+entity.getType()+entity.getID()})
+                            .css('overflow','hidden')
+                            .css('white-space','nowrap')
+                            .css('text-overflow','ellipsis')
+                            .css('padding-right',20)
+                            .append(
+                                $('<span />', { text: entity.getName() }).addClass('name')                                    
+                            )
+                            .prepend(
+                                $('<img />').addClass('img-square')
+                                .width(32).height(32)
+                                .css('margin-right',10)
+                            )
+                            .prepend(
+                                entity.getIcon().css('margin-right',10).css('margin-left',10)
+                            )
+                            .prepend(
+                                $('<input type="checkbox" />')
+                                .addClass('isChecked')
+                                .prop('checked',entity.isChecked())
+                                .click(function() {                                    
+                                    entity.setChecked($(this).prop('checked'));
+                                })
+                            )
+                            .append(
+                                $('<i />')
+                                .addClass('icon-chevron-right')
+                                .addClass('close')
+                                .css('position','absolute')                            
+                                .css('right',10)
+                                .css('margin-top',8)
+                            )
+                        );
+
+        // Just append the first one
+        if ( $this._list.children().length === 0 )
+            $this._list.prepend($entity);
+        else {
+            // Go through each li
+            $this._list.children().each(function(index,elem) {
+                // If the entity name is further on the alphabet than the li            
+                // @todo: I'm worried because it works but doesn't break the loop
+                if ( name > $(elem).children('a').text() ) {
+                    // Put the entity before the li
+                    $(elem).after( $entity );
+                }
+                else {
+                    $(elem).before( $entity );
+                    return false;
+                }
+            });
+        }
+    }
+    
+    EntityList.prototype._getCardMenu = function() {
+        return  $('<div />')
+                .addClass('entity-list-menu')
+                .append(
+                    $('<div />')
+                    .addClass('input-prepend').addClass('input-append')            
+                    .append(
+                        $('<button />')
+                        .prepend( $('<i />').addClass('icon-th-list') )                    
+                        .addClass('btn')
+                        .addClass('show-list-button')
+                        .css('margin-left',1)
+                    )
+                    .append(
+                        $('<button />')
+                        .prepend( $('<i />').addClass('icon-arrow-left').addClass('icon-white') )                    
+                        .addClass('btn').addClass('btn-info')
+                        .addClass('back-button')
+                    )
+                    .append(
+                        $('<input type="text" />')
+                        .addClass('input-medium')
+                        .attr('placeholder','Quick Add')
+                    )
+                    .append(
+                        $('<button />')
+                        .addClass('btn').addClass('btn-warning')
+                        .prepend( $('<i />').addClass('icon-pencil').addClass('icon-white') )
+                    )
+                    .append(
+                        $('<button />')
+                        .addClass('btn').addClass('btn-danger')
+                        .prepend( $('<i />').addClass('icon-trash').addClass('icon-white') )
+                    )
+                );
+    }
+
+    EntityList.prototype._getCard = function(entity) {
+        var $this = this;
+        
+        var $content = $('<div />')
+                        .addClass(entity.getType()+entity.getID())
+                        .addClass('well').addClass('well-small')
+                        .addClass('entity-casino-content')
+                        .css('background-color','white')
+                        //.height( $(window).height() - $('header').height() - $('footer').height() - 70 )
+                        .append(
+                            $('<div />')
+                            .css('float','right')
+                            .append(
+                                entity.getIcon().css('margin-right',10)
+                            )
+                            .append(
+                                $('<input type="checkbox" />')
+                                .addClass('isChecked')
+                                .prop('checked',entity.isChecked())
+                            )
+                        );
+                        
+        function getContainer(type,icon) {
+            var unique = Math.floor(Math.random()*999);
+            
+            var $content =  $('<div />', {id: type+'List'+entity.getID()+'Content'+unique})
+                            .addClass('accordion-body')
+                            .addClass('collapse').addClass('in');
+
+            var $inner =    $('<div />').appendTo( $content )
+                            .addClass('accordion-inner')
+                            .css('margin',-1).css('padding',0);
+
+            var $heading =  $('<div />', {id: type+'List'+entity.getID()+unique})
+                            .addClass('accordion')
+                            .append(
+                                $('<div />').addClass('accordion-group')
+                                .append(
+                                    $('<div />').addClass('accordion-heading')
+                                    .append(
+                                        $('<a />', {
+                                            'data-toggle':  'collapse',
+                                            'data-parent':  '#'+type+'List'+entity.getID()+unique,
+                                            href:           '#'+type+'List'+entity.getID()+'Content'+unique,
+                                            text:           type
+                                        })
+                                        .css('font-weight','bold')
+                                        .addClass('accordion-toggle')
+                                        .prepend(
+                                            $('<i />').addClass(icon).css('margin-right',10).addClass('icon-white')
+                                        )
+                                        .append(
+                                            $('<i />')
+                                            .addClass('icon-white')
+                                            .addClass('icon-chevron-down')
+                                            .css('margin-right',20)
+                                            .css('position','absolute')
+                                            .css('right',0)
+                                        )
+                                        .click(function() {
+                                            var $chevron = $(this).children('i').eq(1);
+                                            if ( $chevron.hasClass('icon-chevron-down') ) {
+                                                $chevron
+                                                .removeClass('icon-chevron-down')
+                                                .addClass('icon-chevron-up');
+
+                                            }
+                                            else {
+                                                $chevron
+                                                .removeClass('icon-chevron-up')
+                                                .addClass('icon-chevron-down');
+                                            }
+                                        })
+                                    )
+                                )
+                                .append( $content )
+                            );
+                                
+            return {container: $heading, inner: $inner};
+        }
+        
+        // PICTURE -----------------------------------------------------------------
+        $('<img />').appendTo( $content )
+        .css('float','left')
+        .css('margin','0 10px 10px 0')
+        .addClass('img-square')
+        .width(48).height(48);
+        
+        // TITLE -------------------------------------------------------------------
+        $('<h4 />', {text: entity.getName()}).appendTo( $content ).css('margin-top',0);
+        
+        // TAGS --------------------------------------------------------------------
+        var $tags = $('<div />').appendTo( $content ).css('clear','both');
+        entity.getEachTag(function(tag) {
+            $tags.append( $('<a />', {href: '#', text: tag.getName()}).addClass('label').prepend( $('<i />').addClass('icon-tag').addClass('icon-white').css('margin-right',5) ).css('margin-left',2).css('margin-right',2) );
+        });
+        
+        // BIOGRAPHY ---------------------------------------------------------------
+        if ( entity.getBiography() ) $content.append( $('<p />', {text: entity.getBiography()}).addClass('well').addClass('well-small').css('margin-top',10).css('margin-bottom',10).css('background-color','lightyellow') );        
+        
+        // UDFS --------------------------------------------------------------------
+        var $udfs = $('<div />').appendTo( $content );
+        var $emailTable = null,
+            $phoneTable = null,
+            $websiteTable = null,
+            $addressTable = null;
+        entity.getEachUdf(function(udf) {
+            switch ( udf.getType() ) {
+                
+                // EMAIL -----------------------------------------------------------
+                case 'email':
+                    if ( $emailTable === null ) {
+                        var emailContainer = getContainer('Email','icon-envelope');
+                        emailContainer.container.appendTo( $udfs );
+                        
+                        $emailTable =   $('<tbody />')
+                                        .appendTo(
+                                            $('<table />')
+                                            .addClass('table')
+                                            .addClass('table-bordered')
+                                            .appendTo( emailContainer.inner )
+                                        );
+                    }
+
+                    $('<tr />').appendTo( $emailTable )
+                    .append( $('<td />', {text: udf.getSubType()}) )
+                    .append( $('<td />', {html: '<a href="mailto:'+udf.getValue().address+'">'+udf.getValue().address+'</a>'}) );
+                    break;
+                    
+                // PHONE -----------------------------------------------------------
+                case 'phone':
+                    if ( $phoneTable === null ) {
+                        var phoneContainer = getContainer('Phone','icon-camera');
+                        phoneContainer.container.appendTo( $udfs );
+                        
+                        $phoneTable =   $('<tbody />')
+                                        .appendTo(
+                                            $('<table />')
+                                            .addClass('table')
+                                            .addClass('table-bordered')
+                                            .appendTo( phoneContainer.inner )
+                                        );
+                    }
+
+                    $('<tr />').appendTo( $phoneTable )
+                    .append( $('<td />', {text: udf.getSubType()}) )
+                    .append( $('<td />', {text: udf.getValue().num}) );
+                    break;
+                    
+                // WEBSITE ---------------------------------------------------------
+                case 'website':
+                    if ( $websiteTable === null ) {
+                        var websiteContainer = getContainer('Website','icon-globe');
+                        websiteContainer.container.appendTo( $udfs );
+                        
+                        $websiteTable =   $('<tbody />')
+                                        .appendTo(
+                                            $('<table />')                                        
+                                            .addClass('table')
+                                            .addClass('table-bordered')
+                                            .appendTo( websiteContainer.inner )
+                                        );
+                    }
+
+                    $('<tr />').appendTo( $websiteTable )
+                    .append( $('<td />', {text: udf.getSubType()}) )
+                    .append( $('<td />', {html: '<a href="'+udf.getValue().url+'" target="_blank">'+udf.getValue().url.substr(11)+'</a>'}) );
+                    break;
+                    
+                // ADDRESS ---------------------------------------------------------
+                case 'address':
+                    if ( $addressTable === null ) {
+                        var addressContainer = getContainer('Address','icon-home');
+                        addressContainer.container.appendTo( $udfs );
+                        
+                        $addressTable = $('<tbody />')
+                                        .appendTo(
+                                            $('<table />')                                        
+                                            .addClass('table')
+                                            .addClass('table-bordered')
+                                            .appendTo( addressContainer.inner )
+                                        );
+                    }
+                    
+                    var address =   udf.getValue().street + (udf.getValue().unit !== '' ? ', '+udf.getValue().unit : '') + '<br>' +
+                                    udf.getValue().city + ', ' + udf.getValue().state + ' ' + udf.getValue().zip;
+                                
+                    var addressQuery =  udf.getValue().street + ', ' + udf.getValue().city + ', ' + udf.getValue().state + ' ' + udf.getValue().zip;
+                    
+                    $('<tr />').appendTo( $addressTable )
+                    .append( $('<td />', {text: udf.getSubType()}) )
+                    .append( $('<td />', {html: '<a target="_blank" href="https://maps.google.com/maps?q='+addressQuery+'">'+address+'</a>'}) );
+                    break;
+                    
+                default:
+                    $.error('Unknown Udf:',udf);
+                    break;
+            }  
+        });
+        
+        // ENTITY CONTENT ----------------------------------------------------------
+        switch ( entity.getType() ) {
+
+            case 'Account':
+                var entityContainer = getContainer('Contacts','icon-user');
+                var $entityUl = $('<ul />').appendTo( entityContainer.inner )
+                .addClass('nav')
+                .addClass('nav-tabs')
+                .addClass('nav-stacked')
+                .css('margin',-1).css('padding',0);
+
+                entity.getEachContact(appendEntityToContainer);
+                break;
+
+            case 'Contact':
+                var entityContainer = getContainer('Accounts','icon-briefcase');
+                var $entityUl = $('<ul />').appendTo( entityContainer.inner )
+                .addClass('nav')
+                .addClass('nav-tabs')
+                .addClass('nav-stacked')
+                .css('margin',-1).css('padding',0);
+
+                entity.getEachParentAccount(appendEntityToContainer);
+                break;
+
+            default:
+                $.error('Unknown entity card for '+entity.getType());
+                break;
+        }        
+
+        function appendEntityToContainer(entity,role) {
+            $('<li />').appendTo( $entityUl )
+            .addClass(entity.getType()+entity.getID())
+            .append(
+                $('<a />', {href: '#'+entity.getType()+entity.getID(), html: '<ul class="unstyled" style="width:199px;position:absolute;margin-top:-37px;left:80px;"><li style="overflow-x:hidden;white-space:nowrap;text-overflow:ellipsis;">'+entity.getName()+'</li><li class="label">'+role+'</li></ul>'})
+                .css('overflow','hidden')
+                .css('white-space','nowrap')
+                .css('text-overflow','ellipsis')
+                .css('padding-right',20)
+                .prepend(
+                    $('<img />').addClass('img-square')
+                    .width(32).height(32)
+                    .css('margin-right',10)
+                )
+                .append(
+                    $('<input type="checkbox" />')
+                    .addClass('isChecked')
+                    .prop('checked',entity.isChecked())
+                )
+                .append(
+                    $('<i />')
+                    .addClass('icon-chevron-right')
+                    .addClass('close')
+                    .css('position','absolute')
+                    .css('right',10)
+                    .css('margin-top',8)
+                )
+            );
+        }
+        entityContainer.container.appendTo( $content );
+
+        return $content;
+    };
+    
+    define(['Pane','ContactCache','AccountCache','UdfCache','TagCache','LogCache','jquery.hashchange'], function() {return $.extend({},new EntityList(),new Pane());});
+}(this));

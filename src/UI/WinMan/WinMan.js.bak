@@ -1,0 +1,234 @@
+// @todo: Disable the winbar and "new contact/account" buttons while animation is taking place
+// @todo: jQuery UI fade the classes for selecting and deselecting the winbar objects
+// @todo: Need to turn this into a jquery plugin... maybe
+// @todo: refresh popover data on winbar hover
+;(function(global,undefined) {
+    WinMan = function() {
+        var $this = this;
+
+        $this._winArray         = new Array();
+        $this._nextArrayIndex   = 0;
+        $this._prevWin          = null;
+        $this._curWin           = null;
+        $this._$winbar          = $('<ul />', {id:'winbar'}).addClass('nav').addClass('nav-pills')
+        $this._creating         = null;
+        $this._switching        = null;        
+
+        // Set up events
+        $this._$winbar.on('click', 'a', function(e) {
+            // Disable the link if it is part of winbar
+            e.preventDefault();
+
+            // Save the href for easy access
+            var href = $(this).attr('href');
+
+            // If the li parent is active (this means the window is open)...
+            if ( $(this).parent().hasClass('active') ) {
+                // Hide the current window
+                $this._curWin[0].hide();
+            }
+            else {
+                // There could be a window open or there might not be...
+                if ( $this._curWin !== null ) {
+                    // Set switching obj
+                    // If the selected window is to the right of this window...
+                    if ( href > $this._curWin[0].getID() ) {
+                        $this._switching = {direction: 'right', newWinID: href};
+                        $this._curWin[0].slideLeftHide();
+                    }
+                    else {
+                        $this._switching = {direction: 'left', newWinID: href};
+                        $this._curWin[0].slideRightHide();
+                    }
+                }
+                else {
+                    $this._winArray[href].restore();
+                }
+            }
+
+        });
+
+        $this._$winbar.on('click', 'b.icon-remove', function(e) {        
+            e.stopPropagation();
+            e.preventDefault();                
+
+            // Destroy the popover first thing
+            $(this).parents('li').popover('hide').popover('destroy');
+
+            var id = $(this).parent().attr('href');
+
+            if ( $this._curWin !== null && $this._curWin[0].getID() == id ) {
+                $this._winArray[id].destroy();
+            }
+            else {
+                // Delete win from array
+                delete $this._winArray[id];
+
+                // Remove the li
+                $this._$winbar.find('a[href="'+id+'"]').parent().remove();
+            }                
+        });
+
+        $this._$winbar.on('mouseenter', 'li', function(e) {
+            var $li = $(this);
+
+            var title = $li.children('a').clone();
+            title.children(':last').remove();
+
+            $li.popover({
+                placement: 'top',
+                trigger: 'manual',
+                html: true,
+                title: title.html(),
+                content: $this._winArray[$li.children('a').attr('href')].getPreview()
+            });
+
+            $li.popover('show');
+
+            // Change popover position if necessary
+            var $popover = $li.next('.popover');
+            var $arrow = $popover.children('.arrow');
+            var edge = 5;
+            var leftPos = $popover.offset().left + edge;
+            var rightPos = $popover.offset().left + $popover.width() + edge;
+
+            if ( leftPos < 0 ) {
+                $popover.offset({left:edge});
+                $arrow.offset({left:$arrow.offset().left + leftPos - edge * 2});            
+            }
+            else if ( rightPos > $(document).width() ) {
+                var posDiff = rightPos - $(document).width();
+                $popover.offset({left:$popover.offset().left - posDiff - edge + 1});
+                $arrow.offset({left:$arrow.offset().left + posDiff + edge + 1});
+            }
+
+        });
+
+        $this._$winbar.on('mouseleave', 'li', function(e) {
+            $(this).popover('hide').popover('destroy');            
+        });
+    }
+
+    WinMan.prototype.newWin = function(entity,func) {    
+        if ( arguments.length === 0 ) $.error('What kind of window?');
+        var $this = this;
+        
+        $this._creating = {entity:entity,func:func};
+        
+        // If there is a current window...
+        if ( $this._curWin !== null ) {        
+            // Then hide it
+            $this._curWin[0].hide();
+        }
+        else {        
+            $this._create();
+        }
+    }
+
+    WinMan.prototype._create = function() {
+        var $this = this;
+        
+        switch ($this._creating.entity) {
+
+            case 'Contact':
+                $this._winArray[$this._nextArrayIndex] = new ContactWin($this._creating.func, $this._nextArrayIndex,
+                                                                        function() {$this._winCreated(this);},
+                                                                        function() {$this._winShown(this);},
+                                                                        function() {$this._winHidden(this);},
+                                                                        function() {$this._winDestroyed(this);}
+                                                                        );
+                break;
+
+            case 'Account':
+                $this._winArray[$this._nextArrayIndex] = new AccountWin($this._creating.func, $this._nextArrayIndex,
+                                                                        function() {$this._winCreated(this);},
+                                                                        function() {$this._winShown(this);},
+                                                                        function() {$this._winHidden(this);},
+                                                                        function() {$this._winDestroyed(this);}
+                                                                        );
+                break;
+
+            default:
+                $.error($this._creating.entity + ' is an invalid entity');
+                break;
+        }
+        
+        $this._creating = null;
+        $this._nextArrayIndex++;
+    }
+
+    WinMan.prototype._winCreated = function(win) {    
+        var $this = this;        
+        
+        // Append li to winbar
+        $this._$winbar
+        .append(
+            $('<li />', {style: 'padding:5px;'})
+            .append('<a href="'+win.getID()+'"><b class="'+win.getIcon()+'" style="margin-right:5px;"></b>'+win.getTitle()+'<b style="margin-left:10px;" class="icon-remove"></b>'+'</a>')        
+        );
+
+        // Call the win shown function to complete the process  
+        $this._winShown(win);
+    }
+
+    WinMan.prototype._winShown = function(win) {
+        var $this = this;
+        
+        // Make this the current window
+        $this._curWin = $(win);
+        
+        // Highlight this li in the winbar
+        var $thisWinbarLi = $this._$winbar.find('a[href="'+win.getID()+'"]').parent();
+        $thisWinbarLi.addClass('active');        
+    }
+
+    WinMan.prototype._winHidden = function(win) {
+        var $this = this;        
+        
+        // Make this the prev window
+        $this._prevWin = $(win);
+        
+        // There is no current window now
+        $this._curWin = null;
+        
+        // Un-Highlight the li in winbar
+        $this._$winbar.find('a[href="'+$this._prevWin[0].getID()+'"]').parent().removeClass('active');    
+        
+        if ( $this._creating !== null ) $this._create();
+        
+        if ( $this._switching !== null ) {
+            
+            switch ( $this._switching.direction ) {
+                
+                case 'right':
+                    $this._winArray[$this._switching.newWinID].slideRightShow();
+                    break;
+                
+                case 'left':
+                    $this._winArray[$this._switching.newWinID].slideLeftShow();
+                    break;
+            }
+            
+            $this._switching = null;
+        }
+    }
+
+    WinMan.prototype._winDestroyed = function(win) {
+        var $this = this;        
+        
+        // Delete curWin from array
+        delete $this._winArray[$this._curWin[0].getID()];
+        
+        // Remove the li
+        $this._$winbar.find('a[href="'+$this._curWin[0].getID()+'"]').parent().remove();
+        
+        // Remove current win
+        $this._curWin = null;
+    }
+
+    WinMan.prototype.getWinBar = function() {
+        return this._$winbar;
+    };
+
+    define(['AccountWin','ContactWin'], function() { return new WinMan(); });
+}(this));
